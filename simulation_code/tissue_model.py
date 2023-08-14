@@ -10,6 +10,11 @@ except ImportError:
     pymcx = None
 from .utils import fig2img
 
+from matplotlib.colors import ListedColormap
+
+import io
+from contextlib import redirect_stdout, redirect_stderr
+
 
 def stack(x):
     if type(x[0]) == np.ndarray:
@@ -107,11 +112,12 @@ class TissueModel:
             m[self.definition == i] = mua
         return m
 
-    def imshow(self, axes=None):
+    def imshow(self, axes=None, smooth=False):
         if axes is None:
             axes = (0, self.sym_axis)
         mean_axis = [x for x in range(3) if x not in axes][0]
         image = np.mean(self.definition, axis=mean_axis)
+        
         if axes[1] > axes[0]:
             image = image.T
             axes = axes[::-1]
@@ -120,16 +126,17 @@ class TissueModel:
 
         extent = (self.r_0[axes[1]], self.r_0[axes[1]] + self.n[axes[1]] * self.dx_mm,
                   self.r_0[axes[0]], self.r_0[axes[0]] + self.n[axes[0]] * self.dx_mm)
-
-        im = ax.imshow(image, extent=extent, origin="lower", interpolation="none", cmap="Accent")
+        from matplotlib.cm import Accent
+        cmap = ListedColormap([Accent(i) for i in range(len(self.tissues))])
+        im = ax.imshow(image, extent=extent, origin="lower", cmap=cmap, interpolation_stage="rgba", clim=(np.min(image)-0.5, np.max(image)+0.5))
         axis_labels = "xyz"
         ax.set_ylabel(axis_labels[axes[0]])
         ax.set_xlabel(axis_labels[axes[1]])
-        plt.colorbar(im, ax=ax)
-        return fig, ax
+        cbar = plt.colorbar(im, ax=ax)
+        return fig, ax, cbar
 
     def _repr_png_(self):
-        fig, ax = self.imshow()
+        fig, ax, _ = self.imshow()
         img = fig2img(fig)
         plt.close(fig)
         return img._repr_png_()
@@ -205,7 +212,12 @@ class TissueModel:
                "isspecular": False,
                "gpuid": gpu_device
                }
-        result = pmcx.run(cfg)
+        f = io.StringIO()
+        
+        f2 = io.StringIO()
+        with redirect_stdout(f):
+            with redirect_stderr(f2):
+                result = pmcx.run(cfg)
         result["flux"] = result["flux"][:, :, :, 0] * tstep
         result["mua"] = self.mua(wavelength)
         result["p0"] = result["flux"] * result["mua"]
