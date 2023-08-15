@@ -1,5 +1,6 @@
 data/
 bonus data (not for upload)/
+data_for_upload/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
