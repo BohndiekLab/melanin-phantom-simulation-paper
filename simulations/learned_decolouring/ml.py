@@ -24,11 +24,12 @@ def gbr_estimate(test_wavelengths, test_spectra, train_spectra, train_oxygenatio
                            MODELS_PATH, train_ds_name):
     wavelengths_str = "[" + "_".join(map(lambda x: f"{x:.0f}.", test_wavelengths)) + "]"
     rf_save_path = f"{MODELS_PATH}/{train_ds_name}_{wavelengths_str}.gbr"
-    # print("Loading:", rf_save_path)
+    
     if os.path.exists(rf_save_path):
         with open(rf_save_path, "rb") as rf_file:
             gbr = pickle.load(rf_file)
     else:
+        print("Tried to load:", rf_save_path)
         gbr = HistGradientBoostingRegressor(max_depth=16)
         gbr.fit(train_spectra.T, train_oxygenations)
         with open(rf_save_path, "wb") as rf_file:
